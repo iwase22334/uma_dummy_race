@@ -5,55 +5,40 @@
 #include <boost/asio/spawn.hpp>
 #include <memory>
 
-namespace servertask {
+namespace task {
     namespace asio = boost::asio;
 
-    class ServerTask {
+    class Task {
     protected:
-        asio::io_service& io_service_;
         asio::ip::tcp::socket& socket_;
 
     public:
-        ServerTask(asio::io_service& io_service, asio::ip::tcp::socket& socket): io_service_(io_service), socket_(socket) {};
-        virtual std::unique_ptr<ServerTask> operator()(asio::yield_context& yield_context) = 0;
-    };
-
-    class AcceptTask: public ServerTask {
-        asio::ip::tcp::acceptor acceptor_;
+        Task(asio::ip::tcp::socket& socket): socket_(socket) {};
 
     public:
-        AcceptTask(asio::io_service& io_service, asio::ip::tcp::socket& socket): 
-            ServerTask(io_service, socket), 
-            acceptor_(io_service, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 31444))
-            {};
-
-        std::unique_ptr<ServerTask> operator()(asio::yield_context& yield_context);
+        virtual std::unique_ptr<Task> operator()(asio::yield_context& yield_context) = 0;
     };
 
-    class ReceiveTask: public ServerTask {
+    class ReceiveTask: public Task {
         asio::streambuf receive_buff_;
 
     public:
-        ReceiveTask(asio::io_service& io_service, asio::ip::tcp::socket& socket): ServerTask(io_service, socket) {};
+        ReceiveTask(asio::ip::tcp::socket& socket): Task(socket) {};
 
-        std::unique_ptr<ServerTask> operator()(asio::yield_context& yield_context);
+    public:
+        std::unique_ptr<Task> operator()(asio::yield_context& yield_context);
     };
 
-    class SendTask: public ServerTask {
+    class SendTask: public Task {
         std::shared_ptr<const std::string> send_data_;
 
     public:
-        SendTask(asio::io_service& io_service, asio::ip::tcp::socket& socket, std::shared_ptr<std::string> send_data) : 
-            ServerTask(io_service, socket), 
+        SendTask(asio::ip::tcp::socket& socket, std::shared_ptr<std::string> send_data) : 
+            Task(socket), 
             send_data_(send_data) {}
 
-        std::unique_ptr<ServerTask> operator()(asio::yield_context& yield_context);
-    };
-
-    class CloseTask: public ServerTask {
     public:
-        CloseTask(asio::io_service& io_service, asio::ip::tcp::socket& socket): ServerTask(io_service, socket) {};
-        std::unique_ptr<ServerTask> operator()(asio::yield_context& yield_context);
+        std::unique_ptr<Task> operator()(asio::yield_context& yield_context);
     };
 
 }
