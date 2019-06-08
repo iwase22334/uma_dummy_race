@@ -47,6 +47,11 @@
 ### Error response
 ```
 {
+    "error": "Invalid request format"
+}
+```
+```
+{
     "error": "Record not found"
 }
 ```
