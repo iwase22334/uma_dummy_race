@@ -1,6 +1,7 @@
 # uma_dummy_race
 ## API
 ### Request
+```
 {
     "race_id": {
         "year": "2018",
@@ -36,15 +37,16 @@
         { "kumiban": "010812",  "hyosu": 1 }
     ]
 }
-
+```
 ### Response
-
+```
 {
     "payout": 2000
 }
-
+```
 ### Error response
-
+```
 {
     "error": "Record not found"
 }
+```
