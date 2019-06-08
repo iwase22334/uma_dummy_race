@@ -16,6 +16,6 @@ message("## Boost_LIBRARY_DIRS: ${Boost_LIBRARY_DIRS}")
 
 include_directories(${Boost_INCLUDE_DIR})
 
-add_executable(dummy_race dummy_race.cpp server_task.cpp)
+add_executable(dummy_race src/dummy_race.cpp src/server_task.cpp)
 target_link_libraries(dummy_race ${Boost_LIBRARIES})
 
