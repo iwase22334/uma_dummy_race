@@ -1,92 +1,125 @@
 #ifndef PSQL_PROXY_HPP
 #define PSQL_PROXY_HPP
 
-#include <list>
-#include <pair>
+#include <pqxx/pqxx>
 
-#include <boost/optional>
+#include <boost/lexical_cast.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/optional.hpp>
 
-struct RaceID {
-    using key = std::string;
-    using value = std::string;
-    using elem = std::pair<key, value>;
-    std::list<elem> value;
-}
+#include <memory>
+#include <string>
 
 struct QueryHRTansyou {
-    using payout = std::pair<std::string, long>;
-    using result_type = boost::optional< std::list<payout> >;
+    using ptree = boost::property_tree::ptree;
+    using result_type = std::shared_ptr< ptree >;
 
-    result_type operator()(pqxx::connection& c, const RaceID& race_id) {
+    result_type operator()(pqxx::connection& c, const ptree& race_id) {
+        if (!is_valid( race_id )) return nullptr;
+
+        // Ask postgres
         pqxx::work work{c};
-
         std::string query = generate_query(race_id);
-
-        std::list<payout> res;
-        pqxx::result r = work.exec(query);
-
+        pqxx::result pq_result = work.exec(query);
         // Not really needed, since we made no changes, but good habit to be
         // explicit about when the transaction is done.
         work.commit();
 
-        if (r.size() == 1) {
-            const auto& row = r.front();
+        auto res = std::make_shared< ptree >();
+
+        if (pq_result.size() == 1) {
+            const auto& row = pq_result.front();
             if (!row["paytansyoumaban1"].is_null()) {
-                res.push_back(payout( row["paytansyoumaban1"].c_str(), row["paytansyopay1"].as<long>() ));
+                res->put( row["paytansyoumaban1"].c_str(), row["paytansyopay1"].as<long>() );
             }
-            else return boost:none;
+            else { return nullptr; }
 
             if (!row["paytansyoumaban2"].is_null()) {
-                res.push_back(payout( row["paytansyoumaban2"].c_str(), row["paytansyopay2"].as<long>() ));
+                res->put( row["paytansyoumaban2"].c_str(), row["paytansyopay2"].as<long>() );
             }
 
             if (!row["paytansyoumaban3"].is_null()) {
-                res.push_back(payout( row["paytansyoumaban3"].c_str(), row["paytansyopay3"].as<long>() ));
+                res->put( row["paytansyoumaban3"].c_str(), row["paytansyopay3"].as<long>() );
             }
 
         }
 
         else {
-            else return boost:none;
+            return nullptr;
         }
 
         return res;
 
-    ERROR:
     }
 
 private:
+    bool is_valid(const ptree& id) const {
+        auto is_number = [](const std::string& s) -> bool {
+            return !s.empty() && std::find_if(s.begin(), 
+                s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
+        };
 
-    std::string generate_query(const RaceID& id) {
-        assert(race_id.value.size() == 6);
+        const std::list< std::pair<std::string, int> > value_len_list {
+            {"year"     , 4},
+            {"monthday" , 4},
+            {"jyocd"    , 2},
+            {"kaiji"    , 2},
+            {"nichiji"  , 2},
+            {"racenum"  , 2}
+        };
 
+        for (const auto& value_len: value_len_list) {
+            if (boost::optional<std::string> value = id.get_optional<std::string>(value_len.first)) {
+                if (!is_number(value.get())) 
+                    return false;
+                if (value.get().size() != value_len.second) 
+                    return false;
+            }
+
+            else {
+                return false;
+            }
+
+        }
+
+        return true;
+    }
+
+    std::string generate_query(const ptree& id) const {
         std::stringstream ss;
 
         ss << "SELECT paytansyoumaban1, paytansyopay1, paytansyoumaban2, paytansyopay2, paytansyoumaban3, paytansyopay3"
-            " FROM public.n_harai"
+            " FROM public.n_harai";
+        ss << " WHERE ";
 
-        const auto& const_it = race_id.value.begin();
-        ss << " WHERE " << race_id.value.front().first << "='" << race_id.value.front().second << "'";
-        for (const auto& elem = race_id.value) {
-            ss << " AND " << const_it.first << "='" << const_it.second << "'";
+        auto end = std::prev(id.end());
+        for (auto it = id.begin(); it != end; ++it) {
+            ss << boost::lexical_cast<std::string>((*it).first) 
+                << R"(=')" 
+                << (*it).second.get_value<std::string>() << R"(')" << " AND ";
         }
 
-        ss << " ORDER BY year DESC, jyocd DESC, kaiji DESC, nichiji DESC, racenum DESC"
+        ss << boost::lexical_cast<std::string>(id.back().first) 
+            << R"(=')" 
+            << id.back().second.get_value<std::string>() << R"(')";
+
+        ss << " ORDER BY year DESC, jyocd DESC, kaiji DESC, nichiji DESC, racenum DESC";
 
         return ss.str();
     }
 };
 
 class PSQLProxy {
+    using ptree = boost::property_tree::ptree;
     pqxx::connection connection_;
 
 public:
     PSQLProxy() : connection_("host=192.168.11.2 dbname=everydb2 user=postgres port=5433 password=password") { };
 
     template<class T>
-    auto operator()( const RaceID& race_id ) -> T::result_type 
+    auto operator()( const ptree& race_id ) -> typename T::result_type
     {
-        return T{}.operator(connection_, id);
+        return T{}.operator()(connection_, race_id);
     };
 };
 

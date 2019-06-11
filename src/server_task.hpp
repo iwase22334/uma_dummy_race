@@ -19,11 +19,12 @@ namespace task {
 
     public:
         virtual std::unique_ptr<Task> operator()(asio::yield_context yield_context, HTTPContext& http_context) = 0;
+
     };
 
     class ReceiveHeader: public Task {
-        using streambuf_ptr = std::shared_ptr<asio::streambuf>;
-        streambuf_ptr receive_buff_;
+        using streambuf_type = std::shared_ptr<asio::streambuf>;
+        streambuf_type receive_buff_;
 
     public:
         ReceiveHeader(asio::ip::tcp::socket& socket): Task(socket), receive_buff_(std::make_shared<asio::streambuf>()) {};
@@ -34,21 +35,22 @@ namespace task {
     };
 
     class ReceiveBody: public Task {
-        using streambuf_ptr = std::shared_ptr<asio::streambuf>;
-        streambuf_ptr receive_buff_;
+        using streambuf_type = std::shared_ptr<asio::streambuf>;
+        streambuf_type receive_buff_;
 
     public:
-        ReceiveBody(asio::ip::tcp::socket& socket, streambuf_ptr buff): Task(socket), receive_buff_(buff) {};
+        ReceiveBody(asio::ip::tcp::socket& socket, streambuf_type buff): Task(socket), receive_buff_(buff) {};
 
     public:
         std::unique_ptr<Task> operator()(asio::yield_context yield_context, HTTPContext& http_context);
     };
 
-    class ProcessRequest: public Task {
-        asio::streambuf receive_buff_;
+    class Application: public Task {
+        using query_type = std::shared_ptr<const std::string>;
+        query_type query_;
 
     public:
-        ProcessRequest(asio::ip::tcp::socket& socket): Task(socket) {};
+        Application(asio::ip::tcp::socket& socket, query_type query): Task(socket), query_(query){};
 
     public:
         std::unique_ptr<Task> operator()(asio::yield_context yield_context, HTTPContext& http_context);
@@ -58,7 +60,11 @@ namespace task {
         std::shared_ptr<const std::string> send_data_;
 
     public:
-        Send(asio::ip::tcp::socket& socket, std::shared_ptr<std::string> send_data) : 
+        static std::shared_ptr<const std::string> generate_200_ok(const std::string& body);
+        static std::shared_ptr<const std::string> generate_400_bad_request(const std::string& body);
+
+    public:
+        Send(asio::ip::tcp::socket& socket, std::shared_ptr<const std::string> send_data) : 
             Task(socket), 
             send_data_(send_data) {}
 

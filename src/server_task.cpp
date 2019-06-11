@@ -1,4 +1,8 @@
 #include "server_task.hpp"
+#include "psql_proxy.hpp"
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 #include <boost/asio.hpp>
 #include <boost/asio/spawn.hpp>
@@ -53,9 +57,9 @@ namespace task {
     std::unique_ptr<Task> ReceiveBody::operator()(asio::yield_context yield_context, HTTPContext& http_context) {
         if (http_context.content_length < receive_buff_->size()) {
             return std::make_unique<Send>(
-                socket_, 
-                std::make_shared<std::string>
-                    ("HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\nContent-Length: 2\r\n\r\nNG"));
+                    socket_, 
+                    Send::generate_400_bad_request("Error")
+                    );
         }
 
         std::cout << "receiving body..." << std::endl;
@@ -63,39 +67,93 @@ namespace task {
         std::cout << http_context.content_length - receive_buff_->size() << std::endl;
         std::cout << "---------------" << std::endl;
 
-        boost::system::error_code error_code;
-        boost::asio::async_read( 
-            socket_, 
-            *receive_buff_, 
-            asio::transfer_exactly(http_context.content_length - receive_buff_->size()), 
-            yield_context[error_code]);
+        {
+            boost::system::error_code error_code;
+            boost::asio::async_read( 
+                    socket_, 
+                    *receive_buff_, 
+                    asio::transfer_exactly(http_context.content_length - receive_buff_->size()), 
+                    yield_context[error_code]);
 
-        if ( error_code == asio::error::eof ) { 
-            std::cout << "ReceiveBody" << ": " << "closed by peer" << std::endl;
-            return nullptr;
-        }
-        else if (error_code) {
-            std::cerr << "ReceiveBody" << ": " << error_code.message() << std::endl;
-            return nullptr;
+            if ( error_code == asio::error::eof ) { 
+                std::cout << "ReceiveBody" << ": " << "closed by peer" << std::endl;
+                return nullptr;
+            }
+            else if (error_code) {
+                std::cerr << "ReceiveBody" << ": " << error_code.message() << std::endl;
+                return nullptr;
+            }
         }
 
-        std::string body = asio::buffer_cast<const char*>(receive_buff_->data());
+        std::shared_ptr<const std::string> body = std::make_shared<std::string>(asio::buffer_cast<const char*>(receive_buff_->data()));
+        receive_buff_->consume(receive_buff_->size());
+
         std::cout << body << std::endl;
         std::cout << "---------------" << std::endl;
 
-        receive_buff_->consume(receive_buff_->size());
+        return std::make_unique<Application>(
+                socket_, 
+                body);
+    }
+
+    std::unique_ptr<Task> Application::operator()(asio::yield_context yield_context, HTTPContext& http_context) {
+        (void)yield_context;
+        (void)http_context;
+
+        boost::property_tree::ptree id;
+        std::istringstream is(*query_);
+
+        try {
+            boost::property_tree::read_json(is, id);
+        }
+
+        catch (const boost::property_tree::json_parser_error& e)
+        {
+            std::cerr << "Application" << ": " << e.what() << std::endl;
+        }
+
+        PSQLProxy ps;
+        auto pt = ps.operator()<QueryHRTansyou>(id);
+
+        if (!pt) {
+            return std::make_unique<Send>(
+                    socket_, 
+                    Send::generate_400_bad_request(R"({ "error": "Invalid request format" })"));
+        }
+
+        std::ostringstream os;
+        boost::property_tree::write_json(os, *pt);
 
         return std::make_unique<Send>(
                 socket_, 
-                std::make_shared<std::string>
-                    ("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 2\r\n\r\nok"));
+                Send::generate_200_ok(os.str()));
     }
 
-    std::unique_ptr<Task> ProcessRequest::operator()(asio::yield_context yield_context, HTTPContext& http_context) {
-        (void)yield_context;
-        (void)http_context;
-        return nullptr;
-    }
+    std::shared_ptr<const std::string> Send::generate_200_ok(const std::string& body){
+        assert( body.size() > 0);
+
+        std::stringstream message;
+
+        message << "HTTP/1.1 200 OK\r\n";
+        message << "Content-Type: text/html\r\n";
+        message << "Content-Length: " << body.size() << "\r\n\r\n";
+        message << body;
+
+        return std::make_shared<std::string>(message.str());
+    };
+
+    std::shared_ptr<const std::string> Send::generate_400_bad_request(const std::string& body){
+        assert( body.size() > 0);
+
+        std::stringstream message;
+
+        message << "HTTP/1.1 400 Bad Request\r\n";
+        message << "Content-Type: text/html\r\n";
+        message << "Content-Length: " << body.size() << "\r\n\r\n";
+        message << body;
+
+        return std::make_shared<std::string>(message.str());
+    };
 
     std::unique_ptr<Task> Send::operator()(asio::yield_context yield_context, HTTPContext& http_context) {
         std::cout << "sending..." << std::endl;
@@ -112,8 +170,6 @@ namespace task {
         }
 
         return std::make_unique<ReceiveHeader>(socket_);
-        //return nullptr;
-
     }
 
 }
