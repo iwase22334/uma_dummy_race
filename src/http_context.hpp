@@ -32,7 +32,7 @@ struct HTTPContext {
     {};
 
     static boost::optional<HTTPContext::Connection> get_connection(const std::string& header) {
-        std::regex re{ R"(Connection: (.*))" };
+        std::regex re{ R"(Connection: (.*))", std::regex::icase };
         std::smatch result;
         if (!std::regex_search(header, result, re)) {
             return boost::none;
@@ -52,7 +52,7 @@ struct HTTPContext {
     static boost::optional<HTTPContext::transferenc_type> get_transfer_encoding(const std::string& header) {
         HTTPContext::transferenc_type tencoding = TransferEncoding::none;
 
-        std::regex re{ R"(Transfer-Encoding: (.*))" };
+        std::regex re{ R"(Transfer-Encoding: (.*))", std::regex::icase };
         std::smatch result;
         if (!std::regex_search(header, result, re)) {
             return boost::none;
@@ -88,7 +88,7 @@ struct HTTPContext {
     static boost::optional<HTTPContext::contentlen_type> get_content_length(const std::string& header) {
         HTTPContext::contentlen_type contentlen = 0;
 
-        std::smatch result; std::regex re{ R"(Content-Length: (\d+))" };
+        std::smatch result; std::regex re{ R"(Content-Length: (\d+))", std::regex::icase };
         if (!std::regex_search(header, result, re)) {
             return 0;
         }
