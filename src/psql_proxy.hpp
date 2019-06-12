@@ -14,8 +14,8 @@ struct QueryHRTansyou {
     using ptree = boost::property_tree::ptree;
     using result_type = std::shared_ptr< ptree >;
 
-    result_type operator()(pqxx::connection& c, const ptree& race_id) {
-        if (!is_valid( race_id )) return nullptr;
+    result_type operator()(pqxx::connection& c, const ptree& race_id) noexcept(false) {
+        if (!is_valid( race_id )) throw std::runtime_error(R"({ "error": "Invalid race_id" })");
 
         // Ask postgres
         pqxx::work work{c};
@@ -32,7 +32,9 @@ struct QueryHRTansyou {
             if (!row["paytansyoumaban1"].is_null()) {
                 res->put( row["paytansyoumaban1"].c_str(), row["paytansyopay1"].as<long>() );
             }
-            else { return nullptr; }
+            else { 
+                throw std::runtime_error(R"({ "error": "No target data in record" })"); 
+            }
 
             if (!row["paytansyoumaban2"].is_null()) {
                 res->put( row["paytansyoumaban2"].c_str(), row["paytansyopay2"].as<long>() );
@@ -45,7 +47,7 @@ struct QueryHRTansyou {
         }
 
         else {
-            return nullptr;
+             throw std::runtime_error(R"({ "error": "Record not found" })"); 
         }
 
         return res;

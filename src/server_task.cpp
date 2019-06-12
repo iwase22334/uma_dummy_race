@@ -7,6 +7,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/spawn.hpp>
 #include <iostream>
+#include <stdexcept>
 
 namespace task {
     namespace asio = boost::asio;
@@ -88,9 +89,6 @@ namespace task {
         std::shared_ptr<const std::string> body = std::make_shared<std::string>(asio::buffer_cast<const char*>(receive_buff_->data()));
         receive_buff_->consume(receive_buff_->size());
 
-        std::cout << body << std::endl;
-        std::cout << "---------------" << std::endl;
-
         return std::make_unique<Application>(
                 socket_, 
                 body);
@@ -100,9 +98,14 @@ namespace task {
         (void)yield_context;
         (void)http_context;
 
+        std::cout << "Application got followint query..." << std::endl;
+        std::cout << "---------------" << std::endl;
+        std::cout << *query_ << std::endl;
+        std::cout << "---------------" << std::endl;
+
         boost::property_tree::ptree id;
         std::istringstream is(*query_);
-
+        // Parse body
         try {
             boost::property_tree::read_json(is, id);
         }
@@ -110,17 +113,35 @@ namespace task {
         catch (const boost::property_tree::json_parser_error& e)
         {
             std::cerr << "Application" << ": " << e.what() << std::endl;
-        }
-
-        PSQLProxy ps;
-        auto pt = ps.operator()<QueryHRTansyou>(id);
-
-        if (!pt) {
             return std::make_unique<Send>(
                     socket_, 
                     Send::generate_400_bad_request(R"({ "error": "Invalid request format" })"));
         }
 
+        std::cout << "asking postgres ..." << std::endl;
+        std::cout << "---------------" << std::endl;
+
+        // Ask Postgres
+        QueryHRTansyou::result_type pt;
+        try {
+            PSQLProxy ps;
+            pt = ps.operator()<QueryHRTansyou>(id);
+        }
+
+        catch (const std::runtime_error& e) {
+            return std::make_unique<Send>(
+                    socket_, 
+                    Send::generate_400_bad_request(e.what()));
+        }
+
+        catch (const std::exception& e) {
+            std::cerr << "Application" << ": " << e.what() << std::endl;
+            return std::make_unique<Send>(
+                    socket_, 
+                    Send::generate_500_internal_server_error(R"({ "error": "Internal Error" })"));
+        }
+
+        // Generate response body
         std::ostringstream os;
         boost::property_tree::write_json(os, *pt);
 
@@ -148,6 +169,19 @@ namespace task {
         std::stringstream message;
 
         message << "HTTP/1.1 400 Bad Request\r\n";
+        message << "Content-Type: text/html\r\n";
+        message << "Content-Length: " << body.size() << "\r\n\r\n";
+        message << body;
+
+        return std::make_shared<std::string>(message.str());
+    };
+
+    std::shared_ptr<const std::string> Send::generate_500_internal_server_error(const std::string& body){
+        assert( body.size() > 0);
+
+        std::stringstream message;
+
+        message << "HTTP/1.1 500 Internal Server Error\r\n";
         message << "Content-Type: text/html\r\n";
         message << "Content-Length: " << body.size() << "\r\n\r\n";
         message << body;

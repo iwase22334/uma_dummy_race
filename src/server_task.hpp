@@ -62,6 +62,7 @@ namespace task {
     public:
         static std::shared_ptr<const std::string> generate_200_ok(const std::string& body);
         static std::shared_ptr<const std::string> generate_400_bad_request(const std::string& body);
+        static std::shared_ptr<const std::string> generate_500_internal_server_error(const std::string& body);
 
     public:
         Send(asio::ip::tcp::socket& socket, std::shared_ptr<const std::string> send_data) : 
