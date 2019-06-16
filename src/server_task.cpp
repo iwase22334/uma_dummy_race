@@ -122,13 +122,14 @@ namespace task {
         std::cout << "---------------" << std::endl;
 
         // Ask Postgres
-        QueryHRTansyou::result_type pt;
+        QueryHRTansyou::result_type payout = 0;
         try {
             PSQLProxy ps;
-            pt = ps.operator()<QueryHRTansyou>(id);
+            payout += ps.operator()<QueryHRTansyou>(id);
         }
 
         catch (const std::runtime_error& e) {
+            std::cerr << "Application" << ": " << e.what() << std::endl;
             return std::make_unique<Send>(
                     socket_, 
                     Send::generate_400_bad_request(e.what()));
@@ -143,7 +144,7 @@ namespace task {
 
         // Generate response body
         std::ostringstream os;
-        boost::property_tree::write_json(os, *pt);
+        os << R"({ "payout": )" << payout << " }" << std::endl;
 
         return std::make_unique<Send>(
                 socket_, 
