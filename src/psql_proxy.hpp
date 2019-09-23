@@ -127,7 +127,7 @@ private:
 
         ss << "SELECT paytansyoumaban1, paytansyopay1, paytansyoumaban2, paytansyopay2, paytansyoumaban3, paytansyopay3"
             " FROM public.n_harai";
-        ss << " WHERE ";
+        ss << " WHERE datakubun='2' AND ";
 
         auto end = std::prev(id.end());
         for (auto it = id.begin(); it != end; ++it) {
