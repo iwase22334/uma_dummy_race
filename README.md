@@ -1,6 +1,7 @@
 # uma_dummy_race
 ## API
 ### Request
+POST query as following format
 ```
 {
     "race_id": {
@@ -14,42 +15,27 @@
     "tansyo_vote": [
         { "umaban": "01", "hyosu": 20 },
         { "umaban": "05",  "hyosu": 4 }
-    ],
-    "hukusyo_vote": [
-        { "umaban": "03",  "hyosu": 13 },
-        { "umaban": "05",  "hyosu": 1 },
-        { "umaban": "14",  "hyosu": 2 }
-    ],
-    "wakuren_vote": [
-        { "kumiban": "58",  "hyosu": 1 },
-        { "kumiban": "22",  "hyosu": 1 }
-    ],
-    "umaren_vote": [
-        { "kumiban": "0413",  "hyosu": 1 }
-    ],
-    "wide_vote": [
-        { "kumiban": "1318",  "hyosu": 1 }
-    ],
-    "umatan_vote": [
-        { "kumiban": "0108",  "hyosu": 1 }
-    ],
-    "sanrenpuku_vote": [
-        { "kumiban": "010812",  "hyosu": 1 }
     ]
-}
 ```
+
 ### Response
+
+#### 200 OK
 ```
 {
     "payout": 2000
 }
 ```
-### Error response
+
+#### 400 Bad Request
+* race_id or vote format is invalid
 ```
 {
     "error": "Invalid request format"
 }
 ```
+
+* No valid data found about the requested id in database 
 ```
 {
     "error": "Record not found"
