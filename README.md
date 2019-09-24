@@ -1,4 +1,4 @@
-# uma_dummy_race
+# uma_dummyrace
 ## API
 ### Request
 POST query as following format
