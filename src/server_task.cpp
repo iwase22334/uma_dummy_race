@@ -146,6 +146,8 @@ namespace task {
         std::ostringstream os;
         os << R"({ "payout": )" << payout << " }" << std::endl;
 
+        std::cout << "Application response body: " << std::endl << os.str() << std::endl;
+
         return std::make_unique<Send>(
                 socket_, 
                 Send::generate_200_ok(os.str()));

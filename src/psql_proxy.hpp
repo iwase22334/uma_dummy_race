@@ -35,12 +35,12 @@ struct QueryHRTansyou {
         // Ask postgres
         pqxx::work work{c};
         std::string query = generate_sql_query(json_id.get());
+        std::cout << "QueryHRTansyou: sql query -- " << std::endl << query << std::endl;
+        std::cout << "-----------------" << std::endl;
         pqxx::result pq_result = work.exec(query);
         // Not really needed, since we made no changes, but good habit to be
         // explicit about when the transaction is done.
         work.commit();
-
-        std::cout << "QueryHRTansyou : " << "disconnect fron postgres" << std::endl;
 
         std::unordered_map<std::string, long> compairson;
         if (pq_result.size() == 1) {
@@ -62,6 +62,13 @@ struct QueryHRTansyou {
                 compairson.insert( {row["paytansyoumaban3"].c_str(), std::atoi(row["paytansyopay3"].c_str())} );
             }
 
+        }
+
+        else if (pq_result.size() == 0) {
+            throw std::runtime_error(R"({ "error": "No target record in database" })");
+        }
+        else {
+            throw std::runtime_error(R"({ "error": "unexpected data duplication" })");
         }
 
         // calculate total of pay out
