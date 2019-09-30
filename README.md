@@ -1,7 +1,7 @@
 # uma_dummyrace
 ## API
 ### Request
-POST query as following format
+Generate POST query as following format
 ```
 {
     "race_id": {
@@ -21,6 +21,7 @@ POST query as following format
 ### Response
 
 #### 200 OK
+Return race result as following format in response body
 ```
 {
     "payout": 2000
