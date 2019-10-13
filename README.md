@@ -16,6 +16,7 @@ Generate POST query as following format
         { "umaban": "01", "hyosu": 20 },
         { "umaban": "05",  "hyosu": 4 }
     ]
+}
 ```
 
 ### Response
