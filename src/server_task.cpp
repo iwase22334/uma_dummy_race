@@ -1,6 +1,5 @@
 #include "server_task.hpp"
-#include "psql_proxy.hpp"
-
+#include "psql_proxy.hpp" 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
@@ -49,6 +48,7 @@ namespace task {
 
         std::cout << header << std::endl;
         std::cout << "---------------" << std::endl;
+        std::cout << "content_length: ";
         std::cout << http_context.content_length << std::endl;
         std::cout << "---------------" << std::endl;
 
@@ -65,16 +65,24 @@ namespace task {
 
         std::cout << "receiving body..." << std::endl;
         std::cout << "---------------" << std::endl;
+        std::cout << "remain to receive: ";
         std::cout << http_context.content_length - receive_buff_->size() << std::endl;
         std::cout << "---------------" << std::endl;
 
         {
             boost::system::error_code error_code;
-            boost::asio::async_read( 
+            const auto size = boost::asio::async_read( 
                     socket_, 
                     *receive_buff_, 
                     asio::transfer_exactly(http_context.content_length - receive_buff_->size()), 
                     yield_context[error_code]);
+
+            std::cout << "---------------" << std::endl;
+            std::cout << "Received body size: ";
+            std::cout << size << std::endl;
+            std::cout << "Buffer size";
+            std::cout << receive_buff_->size() << std::endl;
+            std::cout << "---------------" << std::endl;
 
             if ( error_code == asio::error::eof ) { 
                 std::cout << "ReceiveBody" << ": " << "closed by peer" << std::endl;
@@ -86,8 +94,13 @@ namespace task {
             }
         }
 
-        std::shared_ptr<const std::string> body = std::make_shared<std::string>(asio::buffer_cast<const char*>(receive_buff_->data()));
+        std::shared_ptr<const std::string> body = std::make_shared<std::string>(asio::buffer_cast<const char*>(receive_buff_->data()), http_context.content_length);
         receive_buff_->consume(receive_buff_->size());
+
+        std::cout << "---------------" << std::endl;
+        std::cout << "actual string size: ";
+        std::cout << body->size() << std::endl;
+        std::cout << "---------------" << std::endl;
 
         return std::make_unique<Application>(
                 socket_, 
