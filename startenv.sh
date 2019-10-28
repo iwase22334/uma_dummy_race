@@ -1,0 +1,18 @@
+export PGUSER="postgres"
+export PGPASSWORD="password"
+export PGHOST="192.168.11.2"
+export PGPORT="5433"
+export PGDATABASE_SRC="everydb2"
+
+export DATABASE_URL_SRC="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE_SRC}"
+export DB_EVERYDB2="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE_SRC}"
+export DB_UMA_PROCESSED="postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/uma_processed"
+
+export DUMMY_RACE_HOST="http://localhost"
+export DUMMY_RACE_PORT="8080"
+export DUMMY_RACE_URL="$DUMMY_RACE_HOST:$DUMMY_RACE_PORT"
+
+export WIN_PROB_ESTIMATOR_HOST="http://localhost"
+export WIN_PROB_ESTIMATOR_PORT="62180"
+export WIN_PROB_ESTIMATOR_URL="$WIN_PROB_ESTIMATOR_HOST:$WIN_PROB_ESTIMATOR_PORT"
+
